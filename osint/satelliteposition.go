@@ -42,24 +42,32 @@ func GetLocation(norad string) {
 	fmt.Print("\n ENTER LATITUDE > ")
 	var latitude string
 	fmt.Scanln(&latitude)
-	if strings.TrimSpace(latitude) == "" {
+	latitude = strings.TrimSpace(latitude)
+	if latitude == "" {
 		fmt.Println(color.Ize(color.Red, "  [!] ERROR: Latitude cannot be empty"))
 		return
 	}
 	fmt.Print("\n ENTER LONGITUDE > ")
 	var longitude string
 	fmt.Scanln(&longitude)
-	if strings.TrimSpace(longitude) == "" {
+	longitude = strings.TrimSpace(longitude)
+	if longitude == "" {
 		fmt.Println(color.Ize(color.Red, "  [!] ERROR: Longitude cannot be empty"))
 		return
 	}
 	fmt.Print("\n ENTER ALTITUDE > ")
 	var altitude string
 	fmt.Scanln(&altitude)
-	if strings.TrimSpace(altitude) == "" {
+	altitude = strings.TrimSpace(altitude)
+	if altitude == "" {
 		fmt.Println(color.Ize(color.Red, "  [!] ERROR: Altitude cannot be empty"))
 		return
 	}
+
+	// Clean inputs by removing degree symbols and other non-numeric characters (except decimal point and minus)
+	latitude = cleanNumericInput(latitude)
+	longitude = cleanNumericInput(longitude)
+	altitude = cleanNumericInput(altitude)
 
 	_, err := strconv.ParseFloat(latitude, 64)
 	_, err2 := strconv.ParseFloat(longitude, 64)
@@ -70,8 +78,10 @@ func GetLocation(norad string) {
 		return
 	}
 
+	spinner := ShowProgressWithSpinner("Fetching satellite position data")
 	url := "https://api.n2yo.com/rest/v1/satellite/positions/" + norad + "/" + latitude + "/" + longitude + "/" + altitude + "/2/&apiKey=" + os.Getenv("N2YO_API_KEY")
 	resp, err := http.Get(url)
+	spinner.Stop()
 	if err != nil {
 		fmt.Println(color.Ize(color.Red, "  [!] ERROR: Failed to fetch satellite position data: "+err.Error()))
 		return

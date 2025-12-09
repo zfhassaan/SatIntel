@@ -45,6 +45,12 @@ var testModules = []TestModule{
 		PackagePath: "./osint",
 		TestFile:    "export_test.go",
 	},
+	{
+		Name:        "progress",
+		Description: "Progress indicators tests (spinners, progress bars, API progress)",
+		PackagePath: "./osint",
+		TestFile:    "progress_test.go",
+	},
 	// Add new modules here as you create them
 }
 
