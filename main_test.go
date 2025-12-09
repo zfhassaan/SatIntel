@@ -14,12 +14,12 @@ func TestIsPasswordField(t *testing.T) {
 		expected bool
 	}{
 		{
-			name:     "SPACE_TRACK_PASSWORD should be masked",
+			name:     "SPACE_TRACK_PASSWORD should be masked with asterisks",
 			envKey:   "SPACE_TRACK_PASSWORD",
 			expected: true,
 		},
 		{
-			name:     "N2YO_API_KEY should be masked",
+			name:     "N2YO_API_KEY should be masked with asterisks",
 			envKey:   "N2YO_API_KEY",
 			expected: true,
 		},
@@ -29,32 +29,32 @@ func TestIsPasswordField(t *testing.T) {
 			expected: false,
 		},
 		{
-			name:     "Field containing PASSWORD should be masked",
+			name:     "Field containing PASSWORD should be masked with asterisks",
 			envKey:   "MY_PASSWORD",
 			expected: true,
 		},
 		{
-			name:     "Field containing API_KEY should be masked",
+			name:     "Field containing API_KEY should be masked with asterisks",
 			envKey:   "SOME_API_KEY",
 			expected: true,
 		},
 		{
-			name:     "Field containing SECRET should be masked",
+			name:     "Field containing SECRET should be masked with asterisks",
 			envKey:   "MY_SECRET",
 			expected: true,
 		},
 		{
-			name:     "Field containing TOKEN should be masked",
+			name:     "Field containing TOKEN should be masked with asterisks",
 			envKey:   "ACCESS_TOKEN",
 			expected: true,
 		},
 		{
-			name:     "Lowercase password field should be masked",
+			name:     "Lowercase password field should be masked with asterisks",
 			envKey:   "my_password",
 			expected: true,
 		},
 		{
-			name:     "Mixed case password field should be masked",
+			name:     "Mixed case password field should be masked with asterisks",
 			envKey:   "My_Password_Field",
 			expected: true,
 		},

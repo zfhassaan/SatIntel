@@ -52,12 +52,38 @@ func TLETextFile() {
 	}
 
 	var output TLE
+	var lineOne, lineTwo string
 
 	if count == 3 {
 		var satelliteName string = txtlines[0]
-		output = ConstructTLE(satelliteName, txtlines[1], txtlines[2])
+		lineOne = txtlines[1]
+		lineTwo = txtlines[2]
+		output = ConstructTLE(satelliteName, lineOne, lineTwo)
 	} else {
-		output = ConstructTLE("UNSPECIFIED", txtlines[0], txtlines[1])
+		lineOne = txtlines[0]
+		lineTwo = txtlines[1]
+		output = ConstructTLE("UNSPECIFIED", lineOne, lineTwo)
+	}
+
+	// Validate TLE parsing before displaying
+	parsingFailed := false
+	line1Fields := strings.Fields(lineOne)
+	line2Fields := strings.Fields(lineTwo)
+
+	if len(line1Fields) < 4 || len(line2Fields) < 3 {
+		parsingFailed = true
+	} else if output.SatelliteCatalogNumber == 0 && output.InternationalDesignator == "" && output.ElementSetEpoch == 0.0 {
+		parsingFailed = true
+	}
+
+	if parsingFailed {
+		fmt.Println(color.Ize(color.Red, "  [!] ERROR: Failed to parse TLE data"))
+		fmt.Println(color.Ize(color.Red, fmt.Sprintf("       Line 1 fields: %d (minimum required: 4)", len(line1Fields))))
+		fmt.Println(color.Ize(color.Red, fmt.Sprintf("       Line 2 fields: %d (minimum required: 3)", len(line2Fields))))
+		if len(line1Fields) >= 4 && len(line2Fields) >= 3 {
+			fmt.Println(color.Ize(color.Red, "       Note: Field count is sufficient, but parsing failed. Check TLE format."))
+		}
+		return
 	}
 
 	PrintTLE(output)

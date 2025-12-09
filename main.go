@@ -72,20 +72,77 @@ func isPasswordField(envKey string) bool {
 	return false
 }
 
-// readPassword reads a password from stdin with masking.
+// readPassword reads a password from stdin and displays asterisks for each character typed.
 func readPassword() (string, error) {
 	fd := int(os.Stdin.Fd())
-	password, err := term.ReadPassword(fd)
-	if err != nil {
-		return "", err
+
+	// Check if stdin is a terminal
+	if !term.IsTerminal(fd) {
+		// Fallback to regular input if not a terminal
+		reader := bufio.NewReader(os.Stdin)
+		input, err := reader.ReadString('\n')
+		if err != nil {
+			return "", err
+		}
+		return strings.TrimSpace(input), nil
 	}
-	fmt.Println() // Print newline after masked input
+
+	// Save current terminal state and set to raw mode
+	oldState, err := term.MakeRaw(fd)
+	if err != nil {
+		return "", fmt.Errorf("failed to set raw terminal: %w", err)
+	}
+	defer term.Restore(fd, oldState)
+
+	var password []byte
+	var input [1]byte
+
+	for {
+		n, err := os.Stdin.Read(input[:])
+		if err != nil || n == 0 {
+			break
+		}
+
+		char := input[0]
+
+		// Handle Enter key (carriage return or newline)
+		if char == '\r' || char == '\n' {
+			fmt.Println()
+			break
+		}
+
+		// Handle Backspace/Delete (127 = DEL, 8 = BS)
+		if char == 127 || char == 8 {
+			if len(password) > 0 {
+				password = password[:len(password)-1]
+				// Move cursor back, print space, move cursor back again
+				fmt.Print("\b \b")
+			}
+			continue
+		}
+
+		// Handle Ctrl+C
+		if char == 3 {
+			fmt.Println()
+			os.Exit(1)
+		}
+
+		// Skip control characters except those we handle
+		if char < 32 {
+			continue
+		}
+
+		// Add character to password and print asterisk
+		password = append(password, char)
+		fmt.Print("*")
+	}
+
 	return string(password), nil
 }
 
 // setEnvironmentalVariable prompts the user to enter a value for the given environment variable.
 // It reads from stdin and sets the environment variable with the provided value.
-// Password fields are masked for security.
+// Password fields display asterisks (*) for each character typed for security.
 func setEnvironmentalVariable(envKey string) string {
 	var input string
 	var err error
