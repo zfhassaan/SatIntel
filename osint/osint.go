@@ -170,7 +170,169 @@ func PrintNORADInfo(norad string, name string) {
 	PrintTLE(tle)
 }
 
-// SelectSatellite fetches a list of satellites from Space-Track and presents them in an interactive menu.
+// buildSatcatQuery constructs a Space-Track API query string with optional filters and pagination.
+// Note: Space-Track API uses path segments for filtering. For name search, we'll filter client-side.
+func buildSatcatQuery(searchName, country, objectType, launchYear string, page, pageSize int) string {
+	var parts []string
+	parts = append(parts, "/class/satcat")
+
+	// Add filters (name search is handled client-side for partial matching)
+	if country != "" {
+		parts = append(parts, fmt.Sprintf("/COUNTRY/%s", url.QueryEscape(country)))
+	}
+	if objectType != "" {
+		parts = append(parts, fmt.Sprintf("/OBJECT_TYPE/%s", url.QueryEscape(objectType)))
+	}
+	if launchYear != "" {
+		parts = append(parts, fmt.Sprintf("/LAUNCH_YEAR/%s", url.QueryEscape(launchYear)))
+	}
+
+	// Add ordering
+	parts = append(parts, "/orderby/SATNAME%20asc")
+
+	// For name search, fetch more results to filter client-side
+	// Otherwise use normal pagination
+	if searchName != "" {
+		// Fetch more results for client-side filtering
+		parts = append(parts, "/limit/500")
+	} else if pageSize > 0 {
+		offset := (page - 1) * pageSize
+		parts = append(parts, fmt.Sprintf("/limit/%d,%d", pageSize, offset))
+	} else {
+		parts = append(parts, "/limit/50")
+	}
+
+	parts = append(parts, "/emptyresult/show")
+	return strings.Join(parts, "")
+}
+
+// filterSatellitesByName filters satellites by name (case-insensitive partial match).
+func filterSatellitesByName(sats []Satellite, searchName string) []Satellite {
+	if searchName == "" {
+		return sats
+	}
+	searchLower := strings.ToLower(searchName)
+	var filtered []Satellite
+	for _, sat := range sats {
+		if strings.Contains(strings.ToLower(sat.SATNAME), searchLower) {
+			filtered = append(filtered, sat)
+		}
+	}
+	return filtered
+}
+
+// showSearchMenu displays an interactive menu for searching satellites.
+func showSearchMenu() (string, string, string, string) {
+	searchName := ""
+	country := ""
+	objectType := ""
+	launchYear := ""
+
+	for {
+		menuItems := []string{
+			"Search by Name",
+			"Filter by Country",
+			"Filter by Object Type",
+			"Filter by Launch Year",
+			"Clear All Filters",
+			"Search & Continue",
+		}
+
+		prompt := promptui.Select{
+			Label: "Satellite Search & Filter Options",
+			Items: menuItems,
+			Size:  10,
+		}
+
+		idx, _, err := prompt.Run()
+		if err != nil {
+			return "", "", "", ""
+		}
+
+		switch idx {
+		case 0: // Search by Name
+			namePrompt := promptui.Prompt{
+				Label:     "Enter satellite name (or part of name)",
+				Default:   searchName,
+				AllowEdit: true,
+			}
+			result, err := namePrompt.Run()
+			if err == nil {
+				searchName = strings.TrimSpace(result)
+			}
+
+		case 1: // Filter by Country
+			countryPrompt := promptui.Prompt{
+				Label:     "Enter country code (e.g., US, RU, CN)",
+				Default:   country,
+				AllowEdit: true,
+			}
+			result, err := countryPrompt.Run()
+			if err == nil {
+				country = strings.TrimSpace(result)
+			}
+
+		case 2: // Filter by Object Type
+			typeItems := []string{
+				"PAYLOAD",
+				"ROCKET BODY",
+				"DEBRIS",
+				"UNKNOWN",
+				"TBA",
+				"",
+			}
+			typePrompt := promptui.Select{
+				Label: "Select Object Type",
+				Items: typeItems,
+			}
+			_, result, err := typePrompt.Run()
+			if err == nil {
+				objectType = result
+			}
+
+		case 3: // Filter by Launch Year
+			yearPrompt := promptui.Prompt{
+				Label:     "Enter launch year (e.g., 2020)",
+				Default:   launchYear,
+				AllowEdit: true,
+			}
+			result, err := yearPrompt.Run()
+			if err == nil {
+				launchYear = strings.TrimSpace(result)
+			}
+
+		case 4: // Clear All Filters
+			searchName = ""
+			country = ""
+			objectType = ""
+			launchYear = ""
+			fmt.Println(color.Ize(color.Green, "  [+] All filters cleared"))
+
+		case 5: // Search & Continue
+			return searchName, country, objectType, launchYear
+		}
+
+		// Show current filters
+		if searchName != "" || country != "" || objectType != "" || launchYear != "" {
+			fmt.Println(color.Ize(color.Cyan, "\n  Current Filters:"))
+			if searchName != "" {
+				fmt.Printf("    Name: %s\n", searchName)
+			}
+			if country != "" {
+				fmt.Printf("    Country: %s\n", country)
+			}
+			if objectType != "" {
+				fmt.Printf("    Object Type: %s\n", objectType)
+			}
+			if launchYear != "" {
+				fmt.Printf("    Launch Year: %s\n", launchYear)
+			}
+			fmt.Println()
+		}
+	}
+}
+
+// SelectSatellite fetches a list of satellites from Space-Track with search, filter, and pagination support.
 // Returns the selected satellite name with its NORAD ID in parentheses.
 func SelectSatellite() string {
 	client, err := Login()
@@ -178,35 +340,181 @@ func SelectSatellite() string {
 		fmt.Println(color.Ize(color.Red, "  [!] ERROR: "+err.Error()))
 		return ""
 	}
-	endpoint := "/class/satcat/orderby/SATNAME%20asc/limit/10/emptyresult/show"
-	data, err := QuerySpaceTrack(client, endpoint)
-	if err != nil {
-		fmt.Println(color.Ize(color.Red, "  [!] ERROR: "+err.Error()))
+
+	// Show search/filter menu
+	searchName, country, objectType, launchYear := showSearchMenu()
+
+	page := 1
+	pageSize := 20
+	var allFilteredSats []Satellite
+	var totalPages int
+
+	for {
+		var sats []Satellite
+
+		// If we have name search, we need to fetch all and filter client-side
+		// Cache the filtered results to avoid refetching
+		if searchName != "" && len(allFilteredSats) == 0 {
+			// Fetch a larger batch for client-side filtering
+			endpoint := buildSatcatQuery(searchName, country, objectType, launchYear, 1, 0)
+			data, err := QuerySpaceTrack(client, endpoint)
+			if err != nil {
+				fmt.Println(color.Ize(color.Red, "  [!] ERROR: "+err.Error()))
+				return ""
+			}
+
+			var fetchedSats []Satellite
+			if err := json.Unmarshal([]byte(data), &fetchedSats); err != nil {
+				fmt.Println(color.Ize(color.Red, "  [!] ERROR: Failed to parse satellite data"))
+				fmt.Printf("Error details: %v\n", err)
+				return ""
+			}
+
+			// Apply client-side name filtering
+			allFilteredSats = filterSatellitesByName(fetchedSats, searchName)
+			totalPages = (len(allFilteredSats) + pageSize - 1) / pageSize
+
+			// Apply pagination
+			startIdx := (page - 1) * pageSize
+			endIdx := startIdx + pageSize
+			if endIdx > len(allFilteredSats) {
+				endIdx = len(allFilteredSats)
+			}
+			if startIdx < len(allFilteredSats) {
+				sats = allFilteredSats[startIdx:endIdx]
+			} else {
+				sats = []Satellite{}
+			}
+		} else if searchName != "" {
+			// Use cached filtered results with pagination
+			startIdx := (page - 1) * pageSize
+			endIdx := startIdx + pageSize
+			if endIdx > len(allFilteredSats) {
+				endIdx = len(allFilteredSats)
+			}
+			if startIdx < len(allFilteredSats) {
+				sats = allFilteredSats[startIdx:endIdx]
+			} else {
+				sats = []Satellite{}
+			}
+		} else {
+			// No name search - use server-side pagination
+			endpoint := buildSatcatQuery(searchName, country, objectType, launchYear, page, pageSize)
+			data, err := QuerySpaceTrack(client, endpoint)
+			if err != nil {
+				fmt.Println(color.Ize(color.Red, "  [!] ERROR: "+err.Error()))
+				return ""
+			}
+
+			if err := json.Unmarshal([]byte(data), &sats); err != nil {
+				fmt.Println(color.Ize(color.Red, "  [!] ERROR: Failed to parse satellite data"))
+				fmt.Printf("Error details: %v\n", err)
+				return ""
+			}
+			totalPages = 0 // Unknown for server-side pagination
+		}
+
+		if len(sats) == 0 {
+			fmt.Println(color.Ize(color.Yellow, "  [!] No satellites found with current filters"))
+			fmt.Println(color.Ize(color.Cyan, "  [*] Try adjusting your search criteria"))
+			return ""
+		}
+
+		// Build display strings with additional info
+		var satStrings []string
+		for _, sat := range sats {
+			info := fmt.Sprintf("%s (%s)", sat.SATNAME, sat.NORAD_CAT_ID)
+			if sat.COUNTRY != "" {
+				info += fmt.Sprintf(" - %s", sat.COUNTRY)
+			}
+			if sat.OBJECT_TYPE != "" {
+				info += fmt.Sprintf(" [%s]", sat.OBJECT_TYPE)
+			}
+			satStrings = append(satStrings, info)
+		}
+
+		// Add navigation options
+		var menuItems []string
+		hasNextPage := false
+		if searchName != "" {
+			hasNextPage = page < totalPages
+		} else {
+			hasNextPage = len(sats) == pageSize
+		}
+
+		if page > 1 {
+			menuItems = append(menuItems, "◄ Previous Page")
+		}
+		menuItems = append(menuItems, satStrings...)
+		if hasNextPage {
+			menuItems = append(menuItems, "Next Page ►")
+		}
+		menuItems = append(menuItems, "🔍 New Search", "❌ Cancel")
+
+		pageInfo := fmt.Sprintf("Page %d", page)
+		if searchName != "" && totalPages > 0 {
+			pageInfo += fmt.Sprintf(" of %d", totalPages)
+		}
+		if len(sats) == pageSize && hasNextPage {
+			pageInfo += " (showing 20 results)"
+		} else {
+			pageInfo += fmt.Sprintf(" (%d results)", len(sats))
+		}
+
+		prompt := promptui.Select{
+			Label: fmt.Sprintf("Select a Satellite 🛰 - %s", pageInfo),
+			Items: menuItems,
+			Size:  15,
+		}
+
+		idx, _, err := prompt.Run()
+		if err != nil {
+			fmt.Println(color.Ize(color.Red, "  [!] PROMPT FAILED"))
+			return ""
+		}
+
+		// Handle navigation
+		if page > 1 && idx == 0 {
+			// Previous Page
+			page--
+			continue
+		}
+
+		startIdx := 0
+		if page > 1 {
+			startIdx = 1
+		}
+
+		if idx >= startIdx && idx < startIdx+len(satStrings) {
+			// Selected a satellite - extract just the name and NORAD ID for compatibility
+			selectedIdx := idx - startIdx
+			selectedSat := sats[selectedIdx]
+			return fmt.Sprintf("%s (%s)", selectedSat.SATNAME, selectedSat.NORAD_CAT_ID)
+		}
+
+		nextPageIdx := startIdx + len(satStrings)
+		if idx == nextPageIdx && hasNextPage {
+			// Next Page
+			page++
+			continue
+		}
+
+		newSearchIdx := nextPageIdx
+		if hasNextPage {
+			newSearchIdx++
+		}
+		if idx == newSearchIdx || (idx == nextPageIdx && !hasNextPage) {
+			// New Search - reset cache
+			allFilteredSats = []Satellite{}
+			searchName, country, objectType, launchYear = showSearchMenu()
+			page = 1
+			totalPages = 0
+			continue
+		}
+
+		// Cancel
 		return ""
 	}
-
-	var sats []Satellite
-	if err := json.Unmarshal([]byte(data), &sats); err != nil {
-		fmt.Println(color.Ize(color.Red, "  [!] ERROR: Failed to parse satellite data"))
-		fmt.Printf("Error details: %v\n", err)
-		return ""
-	}
-
-	var satStrings []string
-	for _, sat := range sats {
-		satStrings = append(satStrings, sat.SATNAME+" ("+sat.NORAD_CAT_ID+")")
-	}
-
-	prompt := promptui.Select{
-		Label: "Select a Satellite 🛰",
-		Items: satStrings,
-	}
-	_, result, err := prompt.Run()
-	if err != nil {
-		fmt.Println(color.Ize(color.Red, "  [!] PROMPT FAILED"))
-		return ""
-	}
-	return result
 }
 
 // GenRowString formats a key-value pair into a table row with proper spacing.

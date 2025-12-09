@@ -263,6 +263,94 @@ func TestValidateCredentialsFormatOnly(t *testing.T) {
 	}
 }
 
+// TestValidateCredentialsFormatOnlyWithInvalidInput tests format validation with invalid inputs
+func TestValidateCredentialsFormatOnlyWithInvalidInput(t *testing.T) {
+	// Save original values
+	origUsername := os.Getenv("SPACE_TRACK_USERNAME")
+	origPassword := os.Getenv("SPACE_TRACK_PASSWORD")
+	origAPIKey := os.Getenv("N2YO_API_KEY")
+
+	defer func() {
+		if origUsername != "" {
+			os.Setenv("SPACE_TRACK_USERNAME", origUsername)
+		} else {
+			os.Unsetenv("SPACE_TRACK_USERNAME")
+		}
+		if origPassword != "" {
+			os.Setenv("SPACE_TRACK_PASSWORD", origPassword)
+		} else {
+			os.Unsetenv("SPACE_TRACK_PASSWORD")
+		}
+		if origAPIKey != "" {
+			os.Setenv("N2YO_API_KEY", origAPIKey)
+		} else {
+			os.Unsetenv("N2YO_API_KEY")
+		}
+	}()
+
+	// Test with invalid format credentials
+	os.Setenv("SPACE_TRACK_USERNAME", "ab") // Too short
+	os.Setenv("SPACE_TRACK_PASSWORD", "testpass")
+	os.Setenv("N2YO_API_KEY", "testkey123")
+
+	username := os.Getenv("SPACE_TRACK_USERNAME")
+	if err := validateAPIKeyFormat("SPACE_TRACK_USERNAME", username); err == nil {
+		t.Error("Expected error for too short username, got nil")
+	}
+
+	// Test with valid format
+	os.Setenv("SPACE_TRACK_USERNAME", "testuser")
+	if err := validateAPIKeyFormat("SPACE_TRACK_USERNAME", "testuser"); err != nil {
+		t.Errorf("Expected no error for valid username, got: %v", err)
+	}
+}
+
+// TestValidateAPIKeyFormatPasswordField tests password field validation
+func TestValidateAPIKeyFormatPasswordField(t *testing.T) {
+	tests := []struct {
+		name        string
+		value       string
+		expectError bool
+	}{
+		{
+			name:        "Valid password",
+			value:       "securepass123",
+			expectError: false,
+		},
+		{
+			name:        "Password with special characters",
+			value:       "Pass@123!",
+			expectError: false, // Passwords can have special chars
+		},
+		{
+			name:        "Password too short",
+			value:       "ab",
+			expectError: true,
+		},
+		{
+			name:        "Password too long",
+			value:       strings.Repeat("a", 513),
+			expectError: true,
+		},
+		{
+			name:        "Empty password",
+			value:       "",
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateAPIKeyFormat("SPACE_TRACK_PASSWORD", tt.value)
+			if tt.expectError && err == nil {
+				t.Errorf("Expected error for %q, got nil", tt.value)
+			} else if !tt.expectError && err != nil {
+				t.Errorf("Unexpected error for %q: %v", tt.value, err)
+			}
+		})
+	}
+}
+
 // Benchmark tests
 func BenchmarkValidateAPIKeyFormat(b *testing.B) {
 	testCases := []struct {
