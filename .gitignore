@@ -16,3 +16,7 @@ TESTING.md
 # Test runner (build ignore, but keep in repo)
 run_tests
 run_tests.exe
+
+# User favorites data
+favorites.json
+.satintel/

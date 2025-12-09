@@ -335,6 +335,37 @@ func showSearchMenu() (string, string, string, string) {
 // SelectSatellite fetches a list of satellites from Space-Track with search, filter, and pagination support.
 // Returns the selected satellite name with its NORAD ID in parentheses.
 func SelectSatellite() string {
+	// First, show option to select from favorites or search
+	initialMenu := []string{
+		"⭐ Select from Favorites",
+		"🔍 Search Satellites",
+		"❌ Cancel",
+	}
+
+	initialPrompt := promptui.Select{
+		Label: "Satellite Selection",
+		Items: initialMenu,
+	}
+
+	initialIdx, _, err := initialPrompt.Run()
+	if err != nil {
+		return ""
+	}
+
+	if initialIdx == 0 {
+		// Select from favorites
+		result := SelectFromFavorites()
+		if result != "" {
+			// Offer to remove from favorites or continue
+			return result
+		}
+		return ""
+	} else if initialIdx == 2 {
+		// Cancel
+		return ""
+	}
+
+	// Continue with search
 	client, err := Login()
 	if err != nil {
 		fmt.Println(color.Ize(color.Red, "  [!] ERROR: "+err.Error()))
@@ -449,7 +480,7 @@ func SelectSatellite() string {
 		if hasNextPage {
 			menuItems = append(menuItems, "Next Page ►")
 		}
-		menuItems = append(menuItems, "🔍 New Search", "❌ Cancel")
+		menuItems = append(menuItems, "⭐ View Favorites", "🔍 New Search", "❌ Cancel")
 
 		pageInfo := fmt.Sprintf("Page %d", page)
 		if searchName != "" && totalPages > 0 {
@@ -489,7 +520,27 @@ func SelectSatellite() string {
 			// Selected a satellite - extract just the name and NORAD ID for compatibility
 			selectedIdx := idx - startIdx
 			selectedSat := sats[selectedIdx]
-			return fmt.Sprintf("%s (%s)", selectedSat.SATNAME, selectedSat.NORAD_CAT_ID)
+			result := fmt.Sprintf("%s (%s)", selectedSat.SATNAME, selectedSat.NORAD_CAT_ID)
+
+			// Check if already in favorites and offer to save/remove
+			isFav, _ := IsFavorite(selectedSat.NORAD_CAT_ID)
+			if !isFav {
+				savePrompt := promptui.Prompt{
+					Label:     fmt.Sprintf("Save %s to favorites? (y/n)", selectedSat.SATNAME),
+					Default:   "n",
+					AllowEdit: true,
+				}
+				saveAnswer, _ := savePrompt.Run()
+				if strings.ToLower(strings.TrimSpace(saveAnswer)) == "y" {
+					if err := AddFavorite(selectedSat.SATNAME, selectedSat.NORAD_CAT_ID, selectedSat.COUNTRY, selectedSat.OBJECT_TYPE); err != nil {
+						fmt.Println(color.Ize(color.Yellow, "  [!] "+err.Error()))
+					} else {
+						fmt.Println(color.Ize(color.Green, fmt.Sprintf("  [+] Saved %s to favorites", selectedSat.SATNAME)))
+					}
+				}
+			}
+
+			return result
 		}
 
 		nextPageIdx := startIdx + len(satStrings)
@@ -499,11 +550,23 @@ func SelectSatellite() string {
 			continue
 		}
 
-		newSearchIdx := nextPageIdx
+		favoritesIdx := nextPageIdx
 		if hasNextPage {
-			newSearchIdx++
+			favoritesIdx++
 		}
-		if idx == newSearchIdx || (idx == nextPageIdx && !hasNextPage) {
+		newSearchIdx := favoritesIdx + 1
+
+		if idx == favoritesIdx {
+			// View Favorites
+			favResult := SelectFromFavorites()
+			if favResult != "" {
+				return favResult
+			}
+			// Continue showing current page
+			continue
+		}
+
+		if idx == newSearchIdx || (idx == favoritesIdx && !hasNextPage) {
 			// New Search - reset cache
 			allFilteredSats = []Satellite{}
 			searchName, country, objectType, launchYear = showSearchMenu()
