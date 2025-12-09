@@ -1,0 +1,11 @@
+# Environment variables
+.env
+
+# Build artifacts
+SatIntel
+SatIntel.exe
+*.exe
+
+# Go workspace file
+go.work
+Improvements.md
