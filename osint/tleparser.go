@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/TwiN/go-color"
 	"github.com/iskaa02/qalam/gradient"
@@ -112,6 +113,27 @@ func TLEPlainString() {
 	}
 
 	output := ConstructTLE(lineOne, lineTwo, lineThree)
+
+	// Validate TLE parsing before displaying
+	parsingFailed := false
+	line1Fields := strings.Fields(lineTwo)
+	line2Fields := strings.Fields(lineThree)
+
+	if len(line1Fields) < 4 || len(line2Fields) < 3 {
+		parsingFailed = true
+	} else if output.SatelliteCatalogNumber == 0 && output.InternationalDesignator == "" && output.ElementSetEpoch == 0.0 {
+		parsingFailed = true
+	}
+
+	if parsingFailed {
+		fmt.Println(color.Ize(color.Red, "  [!] ERROR: Failed to parse TLE data"))
+		fmt.Println(color.Ize(color.Red, fmt.Sprintf("       Line 1 fields: %d (minimum required: 4)", len(line1Fields))))
+		fmt.Println(color.Ize(color.Red, fmt.Sprintf("       Line 2 fields: %d (minimum required: 3)", len(line2Fields))))
+		if len(line1Fields) >= 4 && len(line2Fields) >= 3 {
+			fmt.Println(color.Ize(color.Red, "       Note: Field count is sufficient, but parsing failed. Check TLE format."))
+		}
+		return
+	}
 
 	PrintTLE(output)
 }
