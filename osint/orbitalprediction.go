@@ -84,7 +84,8 @@ func GetVisualPrediction() {
 	url := "https://api.n2yo.com/rest/v1/satellite/visualpasses/" + selection.norad + "/" + latitude + "/" + longitude + "/" + altitude + "/" + days + "/" + vis + "/&apiKey=" + os.Getenv("N2YO_API_KEY")
 	resp, err := http.Get(url)
 	if err != nil {
-		fmt.Println(color.Ize(color.Red, "  [!] ERROR: Failed to fetch visual pass data: "+err.Error()))
+		context := fmt.Sprintf("NORAD ID: %s, Latitude: %s, Longitude: %s", selection.norad, latitude, longitude)
+		HandleErrorWithContext(err, ErrCodeAPIRequestFailed, "Failed to fetch visual pass predictions from N2YO API", context)
 		return
 	}
 	defer resp.Body.Close()
@@ -92,7 +93,8 @@ func GetVisualPrediction() {
 	var data VisualPassesResponse
 	err = json.NewDecoder(resp.Body).Decode(&data)
 	if err != nil {
-		fmt.Println(color.Ize(color.Red, "  [!] ERROR: Failed to parse response: "+err.Error()))
+		context := fmt.Sprintf("NORAD ID: %s", selection.norad)
+		HandleErrorWithContext(err, ErrCodeAPIParseFailed, "Failed to parse visual pass prediction response", context)
 		return
 	}
 
@@ -194,7 +196,8 @@ func GetRadioPrediction() {
 	url := "https://api.n2yo.com/rest/v1/satellite/radiopasses/" + selection.norad + "/" + latitude + "/" + longitude + "/" + altitude + "/" + days + "/" + elevation + "/&apiKey=" + os.Getenv("N2YO_API_KEY")
 	resp, err := http.Get(url)
 	if err != nil {
-		fmt.Println(color.Ize(color.Red, "  [!] ERROR: Failed to fetch radio pass data: "+err.Error()))
+		context := fmt.Sprintf("NORAD ID: %s, Latitude: %s, Longitude: %s", selection.norad, latitude, longitude)
+		HandleErrorWithContext(err, ErrCodeAPIRequestFailed, "Failed to fetch radio pass predictions from N2YO API", context)
 		return
 	}
 	defer resp.Body.Close()
@@ -202,7 +205,8 @@ func GetRadioPrediction() {
 	var data RadioPassResponse
 	err = json.NewDecoder(resp.Body).Decode(&data)
 	if err != nil {
-		fmt.Println(color.Ize(color.Red, "  [!] ERROR: Failed to parse response: "+err.Error()))
+		context := fmt.Sprintf("NORAD ID: %s", selection.norad)
+		HandleErrorWithContext(err, ErrCodeAPIParseFailed, "Failed to parse radio pass prediction response", context)
 		return
 	}
 

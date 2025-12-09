@@ -73,7 +73,8 @@ func GetLocation(norad string) {
 	url := "https://api.n2yo.com/rest/v1/satellite/positions/" + norad + "/" + latitude + "/" + longitude + "/" + altitude + "/2/&apiKey=" + os.Getenv("N2YO_API_KEY")
 	resp, err := http.Get(url)
 	if err != nil {
-		fmt.Println(color.Ize(color.Red, "  [!] ERROR: Failed to fetch satellite position data: "+err.Error()))
+		context := fmt.Sprintf("NORAD ID: %s, Latitude: %s, Longitude: %s", norad, latitude, longitude)
+		HandleErrorWithContext(err, ErrCodeAPIRequestFailed, "Failed to fetch satellite position data from N2YO API", context)
 		return
 	}
 	defer resp.Body.Close()
@@ -81,7 +82,8 @@ func GetLocation(norad string) {
 	var data Response
 	err = json.NewDecoder(resp.Body).Decode(&data)
 	if err != nil {
-		fmt.Println(color.Ize(color.Red, "  [!] ERROR: Failed to parse response: "+err.Error()))
+		context := fmt.Sprintf("NORAD ID: %s", norad)
+		HandleErrorWithContext(err, ErrCodeAPIParseFailed, "Failed to parse satellite position response", context)
 		return
 	}
 

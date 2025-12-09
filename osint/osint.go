@@ -29,7 +29,7 @@ func Login() (*http.Client, error) {
 
 	jar, err := cookiejar.New(nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create cookie jar: %w", err)
+		return nil, NewAppErrorWithErr(ErrCodeAuthCookieJar, "Failed to create cookie jar for authentication", err)
 	}
 
 	client := &http.Client{
@@ -38,12 +38,14 @@ func Login() (*http.Client, error) {
 
 	resp, err := client.PostForm(authURL, vals)
 	if err != nil {
-		return nil, fmt.Errorf("unable to authenticate with Space-Track: %w", err)
+		return nil, NewAppErrorWithErr(ErrCodeAuthConnection, "Unable to connect to Space-Track API", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("authentication failed with status code: %d", resp.StatusCode)
+		username := os.Getenv("SPACE_TRACK_USERNAME")
+		context := fmt.Sprintf("Status code: %d, Username: %s", resp.StatusCode, username)
+		return nil, NewAppErrorWithContext(ErrCodeAuthFailed, "Authentication failed with Space-Track API", context)
 	}
 
 	fmt.Println(color.Ize(color.Green, "  [+] Logged in successfully"))
@@ -89,14 +91,15 @@ func extractNorad(str string) string {
 func PrintNORADInfo(norad string, name string) {
 	client, err := Login()
 	if err != nil {
-		fmt.Println(color.Ize(color.Red, "  [!] ERROR: "+err.Error()))
+		HandleError(err, ErrCodeAuthFailed, "Failed to authenticate with Space-Track")
 		return
 	}
 
 	endpoint := fmt.Sprintf("/class/gp_history/format/tle/NORAD_CAT_ID/%s/orderby/EPOCH%%20desc/limit/1", norad)
 	data, err := QuerySpaceTrack(client, endpoint)
 	if err != nil {
-		fmt.Println(color.Ize(color.Red, "  [!] ERROR: "+err.Error()))
+		context := fmt.Sprintf("NORAD ID: %s, Satellite: %s", norad, name)
+		HandleErrorWithContext(err, ErrCodeAPINoData, "Failed to fetch TLE data for satellite", context)
 		return
 	}
 
@@ -110,7 +113,12 @@ func PrintNORADInfo(norad string, name string) {
 	} else {
 		tleLines := strings.Fields(data)
 		if len(tleLines) < 2 {
-			fmt.Println(color.Ize(color.Red, "  [!] ERROR: Invalid TLE data - insufficient fields"))
+			err := NewAppErrorWithContext(
+				ErrCodeTLEInsufficientData,
+				"Invalid TLE data - insufficient fields",
+				fmt.Sprintf("NORAD ID: %s, Fields found: %d", norad, len(tleLines)),
+			)
+			err.Display()
 			return
 		}
 
@@ -136,11 +144,29 @@ func PrintNORADInfo(norad string, name string) {
 	}
 
 	if !strings.HasPrefix(lineOne, "1 ") {
-		fmt.Println(color.Ize(color.Red, "  [!] ERROR: Invalid TLE format - line 1 should start with '1 '"))
+		prefixLen := 10
+		if len(lineOne) < prefixLen {
+			prefixLen = len(lineOne)
+		}
+		err := NewAppErrorWithContext(
+			ErrCodeTLEInvalidFormat,
+			"Invalid TLE format - line 1 should start with '1 '",
+			fmt.Sprintf("NORAD ID: %s, Line 1 prefix: %s", norad, lineOne[:prefixLen]),
+		)
+		err.Display()
 		return
 	}
 	if !strings.HasPrefix(lineTwo, "2 ") {
-		fmt.Println(color.Ize(color.Red, "  [!] ERROR: Invalid TLE format - line 2 should start with '2 '"))
+		prefixLen := 10
+		if len(lineTwo) < prefixLen {
+			prefixLen = len(lineTwo)
+		}
+		err := NewAppErrorWithContext(
+			ErrCodeTLEInvalidFormat,
+			"Invalid TLE format - line 2 should start with '2 '",
+			fmt.Sprintf("NORAD ID: %s, Line 2 prefix: %s", norad, lineTwo[:prefixLen]),
+		)
+		err.Display()
 		return
 	}
 
@@ -158,12 +184,16 @@ func PrintNORADInfo(norad string, name string) {
 	}
 
 	if parsingFailed {
-		fmt.Println(color.Ize(color.Red, "  [!] ERROR: Failed to parse TLE data"))
-		fmt.Println(color.Ize(color.Red, fmt.Sprintf("       Line 1 fields: %d (minimum required: 4)", len(line1Fields))))
-		fmt.Println(color.Ize(color.Red, fmt.Sprintf("       Line 2 fields: %d (minimum required: 3)", len(line2Fields))))
+		context := fmt.Sprintf("NORAD ID: %s, Line 1 fields: %d, Line 2 fields: %d", norad, len(line1Fields), len(line2Fields))
+		err := NewAppErrorWithContext(
+			ErrCodeTLEParseFailed,
+			"Failed to parse TLE data",
+			context,
+		)
 		if len(line1Fields) >= 4 && len(line2Fields) >= 3 {
-			fmt.Println(color.Ize(color.Red, "       Note: Field count is sufficient, but parsing failed. Check TLE format."))
+			err.Suggestions = append(err.Suggestions, "Field count is sufficient, but parsing failed. Check TLE format and data integrity.")
 		}
+		err.Display()
 		return
 	}
 
@@ -390,14 +420,15 @@ func SelectSatellite() string {
 			endpoint := buildSatcatQuery(searchName, country, objectType, launchYear, 1, 0)
 			data, err := QuerySpaceTrack(client, endpoint)
 			if err != nil {
-				fmt.Println(color.Ize(color.Red, "  [!] ERROR: "+err.Error()))
+				context := fmt.Sprintf("Search: %s, Country: %s, Object Type: %s, Launch Year: %s", searchName, country, objectType, launchYear)
+				HandleErrorWithContext(err, ErrCodeAPINoData, "Failed to fetch satellite catalog", context)
 				return ""
 			}
 
 			var fetchedSats []Satellite
 			if err := json.Unmarshal([]byte(data), &fetchedSats); err != nil {
-				fmt.Println(color.Ize(color.Red, "  [!] ERROR: Failed to parse satellite data"))
-				fmt.Printf("Error details: %v\n", err)
+				context := fmt.Sprintf("Search: %s, Response length: %d bytes", searchName, len(data))
+				HandleErrorWithContext(err, ErrCodeAPIParseFailed, "Failed to parse satellite catalog data", context)
 				return ""
 			}
 
@@ -433,21 +464,26 @@ func SelectSatellite() string {
 			endpoint := buildSatcatQuery(searchName, country, objectType, launchYear, page, pageSize)
 			data, err := QuerySpaceTrack(client, endpoint)
 			if err != nil {
-				fmt.Println(color.Ize(color.Red, "  [!] ERROR: "+err.Error()))
+				context := fmt.Sprintf("Page: %d, Country: %s, Object Type: %s", page, country, objectType)
+				HandleErrorWithContext(err, ErrCodeAPINoData, "Failed to fetch satellite catalog", context)
 				return ""
 			}
 
 			if err := json.Unmarshal([]byte(data), &sats); err != nil {
-				fmt.Println(color.Ize(color.Red, "  [!] ERROR: Failed to parse satellite data"))
-				fmt.Printf("Error details: %v\n", err)
+				context := fmt.Sprintf("Page: %d, Response length: %d bytes", page, len(data))
+				HandleErrorWithContext(err, ErrCodeAPIParseFailed, "Failed to parse satellite catalog data", context)
 				return ""
 			}
 			totalPages = 0 // Unknown for server-side pagination
 		}
 
 		if len(sats) == 0 {
-			fmt.Println(color.Ize(color.Yellow, "  [!] No satellites found with current filters"))
-			fmt.Println(color.Ize(color.Cyan, "  [*] Try adjusting your search criteria"))
+			err := NewAppErrorWithContext(
+				ErrCodeSatNoResults,
+				"No satellites found with current filters",
+				fmt.Sprintf("Search: %s, Country: %s, Object Type: %s, Launch Year: %s", searchName, country, objectType, launchYear),
+			)
+			err.Display()
 			return ""
 		}
 

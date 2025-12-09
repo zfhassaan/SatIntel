@@ -86,7 +86,9 @@ func TLETextFile() {
 
 	// Validate file path before attempting to open
 	if err := validateFilePath(path); err != nil {
-		fmt.Println(color.Ize(color.Red, fmt.Sprintf("  [!] ERROR: %s", err.Error())))
+		appErr := NewAppErrorWithContext(ErrCodeFilePathInvalid, "Invalid file path", fmt.Sprintf("Path: %s", path))
+		appErr.OriginalErr = err
+		appErr.Display()
 		return
 	}
 
@@ -96,20 +98,22 @@ func TLETextFile() {
 	// Check if file exists and is a regular file (not a directory)
 	fileInfo, err := os.Stat(path)
 	if err != nil {
-		fmt.Println(color.Ize(color.Red, "  [!] INVALID TEXT FILE"))
+		context := fmt.Sprintf("File path: %s", path)
+		HandleErrorWithContext(err, ErrCodeFileNotFound, "Failed to access TLE file", context)
 		return
 	}
 
 	// Ensure it's a file, not a directory
 	if fileInfo.IsDir() {
-		fmt.Println(color.Ize(color.Red, "  [!] ERROR: Path is a directory, not a file"))
+		err := NewAppErrorWithContext(ErrCodeFilePathInvalid, "Path is a directory, not a file", fmt.Sprintf("Path: %s", path))
+		err.Display()
 		return
 	}
 
 	file, err := os.Open(path)
-
 	if err != nil {
-		fmt.Println(color.Ize(color.Red, "  [!] INVALID TEXT FILE"))
+		context := fmt.Sprintf("File path: %s", path)
+		HandleErrorWithContext(err, ErrCodeFileReadFailed, "Failed to open TLE file", context)
 		return
 	}
 	defer file.Close()
@@ -125,7 +129,12 @@ func TLETextFile() {
 	}
 
 	if count < 2 || count > 3 {
-		fmt.Println(color.Ize(color.Red, "  [!] INVALID TLE FORMAT"))
+		err := NewAppErrorWithContext(
+			ErrCodeTLEInvalidFormat,
+			"Invalid TLE format - file must contain 2 or 3 lines",
+			fmt.Sprintf("File: %s, Lines found: %d", path, count),
+		)
+		err.Display()
 		return
 	}
 
