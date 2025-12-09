@@ -8,4 +8,11 @@ SatIntel.exe
 
 # Go workspace file
 go.work
-Improvements.md
+
+# Documentation files
+IMPROVEMENTS.md
+TESTING.md
+
+# Test runner (build ignore, but keep in repo)
+run_tests
+run_tests.exe

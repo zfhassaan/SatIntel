@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/ANG13T/SatIntel/cli"
+	"golang.org/x/term"
 )
 
 // loadEnvFile reads environment variables from a .env file in the current directory.
@@ -52,17 +53,61 @@ func loadEnvFile() error {
 	return nil
 }
 
+// isPasswordField determines if the environment variable should have masked input.
+func isPasswordField(envKey string) bool {
+	passwordFields := []string{
+		"SPACE_TRACK_PASSWORD",
+		"N2YO_API_KEY",
+		"PASSWORD",
+		"API_KEY",
+		"SECRET",
+		"TOKEN",
+	}
+	envKeyUpper := strings.ToUpper(envKey)
+	for _, field := range passwordFields {
+		if strings.Contains(envKeyUpper, field) {
+			return true
+		}
+	}
+	return false
+}
+
+// readPassword reads a password from stdin with masking.
+func readPassword() (string, error) {
+	fd := int(os.Stdin.Fd())
+	password, err := term.ReadPassword(fd)
+	if err != nil {
+		return "", err
+	}
+	fmt.Println() // Print newline after masked input
+	return string(password), nil
+}
+
 // setEnvironmentalVariable prompts the user to enter a value for the given environment variable.
 // It reads from stdin and sets the environment variable with the provided value.
+// Password fields are masked for security.
 func setEnvironmentalVariable(envKey string) string {
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Printf("%s: ", envKey)
-	input, err := reader.ReadString('\n')
+	var input string
+	var err error
 
-	if err != nil {
-		fmt.Println("Error reading input:", err)
-		os.Exit(1)
+	fmt.Printf("%s: ", envKey)
+
+	if isPasswordField(envKey) {
+		input, err = readPassword()
+		if err != nil {
+			fmt.Println("Error reading password:", err)
+			os.Exit(1)
+		}
+	} else {
+		reader := bufio.NewReader(os.Stdin)
+		input, err = reader.ReadString('\n')
+		if err != nil {
+			fmt.Println("Error reading input:", err)
+			os.Exit(1)
+		}
+		input = strings.TrimSpace(input)
 	}
+
 	input = strings.TrimSpace(input)
 
 	if err := os.Setenv(envKey, input); err != nil {
