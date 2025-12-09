@@ -1,5 +1,8 @@
 package main
 
+// NOTE: This test file contains fake test credentials (e.g., "fake_test_password", "FAKE-TEST-KEY")
+// These are NOT real secrets and are used only for testing purposes.
+
 import (
 	"os"
 	"strings"
@@ -24,13 +27,13 @@ func TestValidateAPIKeyFormat(t *testing.T) {
 		{
 			name:        "Valid Space-Track password",
 			envKey:      "SPACE_TRACK_PASSWORD",
-			value:       "securepassword123",
+			value:       "fake_test_password_123", // Test value only
 			expectError: false,
 		},
 		{
 			name:        "Valid N2YO API key",
 			envKey:      "N2YO_API_KEY",
-			value:       "ABC123-DEF456-GHI789",
+			value:       "FAKE-TEST-KEY-12345-67890", // Test value only
 			expectError: false,
 		},
 		{
@@ -177,7 +180,7 @@ func TestValidateAPIKeyFormat(t *testing.T) {
 		{
 			name:        "API key with mixed case",
 			envKey:      "N2YO_API_KEY",
-			value:       "AbC123-XyZ789",
+			value:       "FAKE-TEST-KEY-ABC-XYZ", // Test value only
 			expectError: false,
 		},
 		{
@@ -225,8 +228,8 @@ func TestValidateCredentialsFormatOnly(t *testing.T) {
 
 	// Set test values
 	os.Setenv("SPACE_TRACK_USERNAME", "testuser")
-	os.Setenv("SPACE_TRACK_PASSWORD", "testpass")
-	os.Setenv("N2YO_API_KEY", "testkey123")
+		os.Setenv("SPACE_TRACK_PASSWORD", "fake_test_password") // Test value only
+		os.Setenv("N2YO_API_KEY", "fake_test_key_123") // Test value only
 
 	// Test format validation (we'll skip connection tests in unit tests)
 	username := os.Getenv("SPACE_TRACK_USERNAME")
@@ -290,8 +293,8 @@ func TestValidateCredentialsFormatOnlyWithInvalidInput(t *testing.T) {
 
 	// Test with invalid format credentials
 	os.Setenv("SPACE_TRACK_USERNAME", "ab") // Too short
-	os.Setenv("SPACE_TRACK_PASSWORD", "testpass")
-	os.Setenv("N2YO_API_KEY", "testkey123")
+		os.Setenv("SPACE_TRACK_PASSWORD", "fake_test_password") // Test value only
+		os.Setenv("N2YO_API_KEY", "fake_test_key_123") // Test value only
 
 	username := os.Getenv("SPACE_TRACK_USERNAME")
 	if err := validateAPIKeyFormat("SPACE_TRACK_USERNAME", username); err == nil {
@@ -314,7 +317,7 @@ func TestValidateAPIKeyFormatPasswordField(t *testing.T) {
 	}{
 		{
 			name:        "Valid password",
-			value:       "securepass123",
+			value:       "fake_test_pass_123", // Test value only
 			expectError: false,
 		},
 		{
@@ -358,10 +361,10 @@ func BenchmarkValidateAPIKeyFormat(b *testing.B) {
 		value  string
 	}{
 		{"SPACE_TRACK_USERNAME", "testuser123"},
-		{"SPACE_TRACK_PASSWORD", "securepassword"},
-		{"N2YO_API_KEY", "ABC123-DEF456"},
+		{"SPACE_TRACK_PASSWORD", "fake_test_password_123"}, // Test value only
+		{"N2YO_API_KEY", "FAKE-TEST-KEY-12345"}, // Test value only
 		{"SPACE_TRACK_USERNAME", strings.Repeat("a", 100)},
-		{"N2YO_API_KEY", "test_key_123"},
+		{"N2YO_API_KEY", "fake_test_key_123"}, // Test value only
 	}
 
 	for i := 0; i < b.N; i++ {

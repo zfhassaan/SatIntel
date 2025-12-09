@@ -93,19 +93,19 @@ func TestLoadEnvFile(t *testing.T) {
 		{
 			name: "Valid .env file with all variables",
 			envContent: `SPACE_TRACK_USERNAME=testuser
-SPACE_TRACK_PASSWORD=testpass
-N2YO_API_KEY=testkey
+SPACE_TRACK_PASSWORD=fake_test_password
+N2YO_API_KEY=fake_test_key
 `,
 			expectError: false,
 			checkEnv: func(t *testing.T) {
 				if val := os.Getenv("SPACE_TRACK_USERNAME"); val != "testuser" {
 					t.Errorf("SPACE_TRACK_USERNAME = %q, want %q", val, "testuser")
 				}
-				if val := os.Getenv("SPACE_TRACK_PASSWORD"); val != "testpass" {
-					t.Errorf("SPACE_TRACK_PASSWORD = %q, want %q", val, "testpass")
+				if val := os.Getenv("SPACE_TRACK_PASSWORD"); val != "fake_test_password" {
+					t.Errorf("SPACE_TRACK_PASSWORD = %q, want %q", val, "fake_test_password")
 				}
-				if val := os.Getenv("N2YO_API_KEY"); val != "testkey" {
-					t.Errorf("N2YO_API_KEY = %q, want %q", val, "testkey")
+				if val := os.Getenv("N2YO_API_KEY"); val != "fake_test_key" {
+					t.Errorf("N2YO_API_KEY = %q, want %q", val, "fake_test_key")
 				}
 			},
 		},
@@ -146,19 +146,19 @@ SPACE_TRACK_PASSWORD=testpass
 		{
 			name: ".env file with quoted values",
 			envContent: `SPACE_TRACK_USERNAME="testuser"
-SPACE_TRACK_PASSWORD='testpass'
-N2YO_API_KEY="testkey"
+SPACE_TRACK_PASSWORD='fake_test_password'
+N2YO_API_KEY="fake_test_key"
 `,
 			expectError: false,
 			checkEnv: func(t *testing.T) {
 				if val := os.Getenv("SPACE_TRACK_USERNAME"); val != "testuser" {
 					t.Errorf("SPACE_TRACK_USERNAME = %q, want %q", val, "testuser")
 				}
-				if val := os.Getenv("SPACE_TRACK_PASSWORD"); val != "testpass" {
-					t.Errorf("SPACE_TRACK_PASSWORD = %q, want %q", val, "testpass")
+				if val := os.Getenv("SPACE_TRACK_PASSWORD"); val != "fake_test_password" {
+					t.Errorf("SPACE_TRACK_PASSWORD = %q, want %q", val, "fake_test_password")
 				}
-				if val := os.Getenv("N2YO_API_KEY"); val != "testkey" {
-					t.Errorf("N2YO_API_KEY = %q, want %q", val, "testkey")
+				if val := os.Getenv("N2YO_API_KEY"); val != "fake_test_key" {
+					t.Errorf("N2YO_API_KEY = %q, want %q", val, "fake_test_key")
 				}
 			},
 		},
@@ -402,8 +402,8 @@ func BenchmarkLoadEnvFile(b *testing.B) {
 	defer os.Chdir(originalDir)
 
 	envContent := `SPACE_TRACK_USERNAME=testuser
-SPACE_TRACK_PASSWORD=testpass
-N2YO_API_KEY=testkey
+SPACE_TRACK_PASSWORD=fake_test_password
+N2YO_API_KEY=fake_test_key
 `
 
 	envPath := filepath.Join(tmpDir, ".env")
