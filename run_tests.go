@@ -39,6 +39,12 @@ var testModules = []TestModule{
 		PackagePath: "./cli",
 		TestFile:    "cli_test.go",
 	},
+	{
+		Name:        "batch",
+		Description: "Batch operations tests (multi-satellite processing, comparisons, exports)",
+		PackagePath: "./osint",
+		TestFile:    "batch_test.go",
+	},
 	// Add new modules here as you create them
 }
 
