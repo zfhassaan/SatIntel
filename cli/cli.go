@@ -24,7 +24,7 @@ func Option() {
 		fmt.Println(color.Ize(color.Red, "  [!] INVALID INPUT"))
 		Option()
 	} else {
-		if num >= 0 && num < 5 {
+		if num >= 0 && num < 6 {
 			DisplayFunctions(num)
 		} else {
 			fmt.Println(color.Ize(color.Red, "  [!] INVALID INPUT"))
@@ -59,6 +59,12 @@ func DisplayFunctions(x int) {
 		Option()
 	} else if x == 4 {
 		osint.TLEParser()
+		waitForEnter()
+		clearScreen()
+		Banner()
+		Option()
+	} else if x == 5 {
+		osint.BatchOperations()
 		waitForEnter()
 		clearScreen()
 		Banner()
