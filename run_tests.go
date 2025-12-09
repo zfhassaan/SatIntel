@@ -29,7 +29,7 @@ var testModules = []TestModule{
 	},
 	{
 		Name:        "osint",
-		Description: "OSINT package tests (TLE parsing, API interactions, satellite data)",
+		Description: "OSINT package tests (TLE parsing, API interactions, satellite data, export functionality)",
 		PackagePath: "./osint",
 		TestFile:    "osint_test.go",
 	},
@@ -39,11 +39,17 @@ var testModules = []TestModule{
 		PackagePath: "./cli",
 		TestFile:    "cli_test.go",
 	},
+	{
+		Name:        "export",
+		Description: "Export functionality tests (CSV, JSON, Text export for TLE, predictions, positions)",
+		PackagePath: "./osint",
+		TestFile:    "export_test.go",
+	},
 	// Add new modules here as you create them
 }
 
 // runTests executes go test for a specific module
-func runTests(module TestModule, verbose bool, coverage bool, benchmark bool) error {
+func runTests(module TestModule, verbose bool, coverage bool, benchmark bool, testPattern string) error {
 	args := []string{"test"}
 
 	if verbose {
@@ -58,6 +64,11 @@ func runTests(module TestModule, verbose bool, coverage bool, benchmark bool) er
 		args = append(args, "-bench=.", "-benchmem")
 	}
 
+	// Add test name pattern filter if specified
+	if testPattern != "" {
+		args = append(args, "-run", testPattern)
+	}
+
 	args = append(args, module.PackagePath)
 
 	cmd := exec.Command("go", args...)
@@ -67,6 +78,9 @@ func runTests(module TestModule, verbose bool, coverage bool, benchmark bool) er
 	fmt.Printf("\n%s Testing module: %s %s\n", strings.Repeat("=", 40), module.Name, strings.Repeat("=", 40))
 	fmt.Printf("Description: %s\n", module.Description)
 	fmt.Printf("Package: %s\n", module.PackagePath)
+	if testPattern != "" {
+		fmt.Printf("Test Pattern: %s\n", testPattern)
+	}
 	fmt.Printf("Command: go %s\n\n", strings.Join(args, " "))
 
 	return cmd.Run()
@@ -107,6 +121,7 @@ func main() {
 		benchFlag     = flag.Bool("bench", false, "Run benchmarks")
 		checkFlag     = flag.Bool("check", false, "Check which test files exist")
 		helpFlag      = flag.Bool("help", false, "Show help message")
+		runFlag       = flag.String("run", "", "Run only tests matching the pattern (e.g., 'TestExport' for export tests)")
 	)
 
 	flag.Parse()
@@ -123,6 +138,7 @@ func main() {
 		fmt.Println("  go run run_tests.go -module=main            # Run main package tests")
 		fmt.Println("  go run run_tests.go -all -cover             # Run all tests with coverage")
 		fmt.Println("  go run run_tests.go -module=osint -v        # Run osint tests verbosely")
+		fmt.Println("  go run run_tests.go -module=export -run TestExport  # Run only export tests")
 		fmt.Println("  go run run_tests.go -check                  # Check test file status")
 		fmt.Println("  go run run_tests.go -module=list            # List available modules")
 		return
@@ -157,7 +173,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		if err := runTests(*foundModule, *verboseFlag, *coverageFlag, *benchFlag); err != nil {
+		if err := runTests(*foundModule, *verboseFlag, *coverageFlag, *benchFlag, *runFlag); err != nil {
 			os.Exit(1)
 		}
 		return
@@ -177,7 +193,7 @@ func main() {
 				continue
 			}
 
-			if err := runTests(module, *verboseFlag, *coverageFlag, *benchFlag); err != nil {
+			if err := runTests(module, *verboseFlag, *coverageFlag, *benchFlag, *runFlag); err != nil {
 				failed = true
 				fmt.Printf("\n❌ Tests failed for module: %s\n", module.Name)
 			} else {

@@ -10,6 +10,7 @@ import (
 
 	"github.com/TwiN/go-color"
 	"github.com/iskaa02/qalam/gradient"
+	"github.com/manifoldco/promptui"
 )
 
 // SatellitePositionVisualization provides an interactive menu for viewing satellite positions.
@@ -99,6 +100,24 @@ func GetLocation(norad string) {
 		PrintSatellitePosition(pos, in == len(data.Positions)-1)
 	}
 
+	// Offer export option
+	exportPrompt := promptui.Prompt{
+		Label:     "Export satellite positions? (y/n)",
+		Default:   "n",
+		AllowEdit: true,
+	}
+	exportAnswer, _ := exportPrompt.Run()
+	if strings.ToLower(strings.TrimSpace(exportAnswer)) == "y" {
+		defaultFilename := fmt.Sprintf("positions_%s_%d", strings.ReplaceAll(data.SatelliteInfo.Satname, " ", "_"), data.SatelliteInfo.Satid)
+		format, filePath, err := showExportMenu(defaultFilename)
+		if err == nil {
+			if err := ExportSatellitePosition(data, format, filePath); err != nil {
+				fmt.Println(color.Ize(color.Red, "  [!] ERROR: Failed to export: "+err.Error()))
+			} else {
+				fmt.Println(color.Ize(color.Green, fmt.Sprintf("  [+] Exported to: %s", filePath)))
+			}
+		}
+	}
 }
 
 // DisplayMap is a placeholder for future map visualization functionality.
