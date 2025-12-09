@@ -10,6 +10,7 @@ import (
 
 	"github.com/TwiN/go-color"
 	"github.com/iskaa02/qalam/gradient"
+	"github.com/manifoldco/promptui"
 )
 
 // OrbitalPrediction provides an interactive menu for visual and radio pass predictions.
@@ -115,6 +116,25 @@ func GetVisualPrediction() {
 	} else {
 		fmt.Println(color.Ize(color.Purple, "╚═════════════════════════════════════════════════════════════╝\n\n"))
 	}
+
+	// Offer export option
+	exportPrompt := promptui.Prompt{
+		Label:     "Export visual pass predictions? (y/n)",
+		Default:   "n",
+		AllowEdit: true,
+	}
+	exportAnswer, _ := exportPrompt.Run()
+	if strings.ToLower(strings.TrimSpace(exportAnswer)) == "y" {
+		defaultFilename := fmt.Sprintf("visual_passes_%s_%d", strings.ReplaceAll(data.Info.SatName, " ", "_"), data.Info.SatID)
+		format, filePath, err := showExportMenu(defaultFilename)
+		if err == nil {
+			if err := ExportVisualPrediction(data, format, filePath); err != nil {
+				fmt.Println(color.Ize(color.Red, "  [!] ERROR: Failed to export: "+err.Error()))
+			} else {
+				fmt.Println(color.Ize(color.Green, fmt.Sprintf("  [+] Exported to: %s", filePath)))
+			}
+		}
+	}
 }
 
 // GetRadioPrediction fetches and displays radio pass predictions for a satellite.
@@ -205,6 +225,25 @@ func GetRadioPrediction() {
 		}
 	} else {
 		fmt.Println(color.Ize(color.Purple, "╚═════════════════════════════════════════════════════════════╝\n\n"))
+	}
+
+	// Offer export option
+	exportPrompt := promptui.Prompt{
+		Label:     "Export radio pass predictions? (y/n)",
+		Default:   "n",
+		AllowEdit: true,
+	}
+	exportAnswer, _ := exportPrompt.Run()
+	if strings.ToLower(strings.TrimSpace(exportAnswer)) == "y" {
+		defaultFilename := fmt.Sprintf("radio_passes_%s_%d", strings.ReplaceAll(data.Info.SatName, " ", "_"), data.Info.SatID)
+		format, filePath, err := showExportMenu(defaultFilename)
+		if err == nil {
+			if err := ExportRadioPrediction(data, format, filePath); err != nil {
+				fmt.Println(color.Ize(color.Red, "  [!] ERROR: Failed to export: "+err.Error()))
+			} else {
+				fmt.Println(color.Ize(color.Green, fmt.Sprintf("  [+] Exported to: %s", filePath)))
+			}
+		}
 	}
 }
 

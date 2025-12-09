@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/TwiN/go-color"
+	"github.com/manifoldco/promptui"
 )
 
 type TLE struct {
@@ -142,4 +143,23 @@ func PrintTLE(tle TLE) {
 	fmt.Println(color.Ize(color.Purple, GenRowString("Checksum Line Two", fmt.Sprintf("%d", tle.ChecksumTwo))))
 
 	fmt.Println(color.Ize(color.Purple, "╚═════════════════════════════════════════════════════════════╝ \n\n"))
+
+	// Offer export option
+	exportPrompt := promptui.Prompt{
+		Label:     "Export TLE data? (y/n)",
+		Default:   "n",
+		AllowEdit: true,
+	}
+	exportAnswer, _ := exportPrompt.Run()
+	if strings.ToLower(strings.TrimSpace(exportAnswer)) == "y" {
+		defaultFilename := fmt.Sprintf("tle_%s_%d", strings.ReplaceAll(tle.CommonName, " ", "_"), tle.SatelliteCatalogNumber)
+		format, filePath, err := showExportMenu(defaultFilename)
+		if err == nil {
+			if err := ExportTLE(tle, format, filePath); err != nil {
+				fmt.Println(color.Ize(color.Red, "  [!] ERROR: Failed to export: "+err.Error()))
+			} else {
+				fmt.Println(color.Ize(color.Green, fmt.Sprintf("  [+] Exported to: %s", filePath)))
+			}
+		}
+	}
 }
