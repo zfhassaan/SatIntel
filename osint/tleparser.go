@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/TwiN/go-color"
@@ -24,11 +25,87 @@ func TLEParser() {
 	}
 }
 
+// validateFilePath checks if a file path is safe and valid.
+// It prevents directory traversal attacks and validates path format.
+func validateFilePath(path string) error {
+	// Trim whitespace
+	path = strings.TrimSpace(path)
+
+	// Check for empty path
+	if path == "" {
+		return fmt.Errorf("file path cannot be empty")
+	}
+
+	// Check for null bytes (potential injection)
+	if strings.Contains(path, "\x00") {
+		return fmt.Errorf("file path contains invalid characters")
+	}
+
+	// Check for directory traversal patterns
+	dangerousPatterns := []string{
+		"..",
+		"../",
+		"..\\",
+		"/..",
+		"\\..",
+		"//",
+		"\\\\",
+	}
+	pathNormalized := strings.ToLower(path)
+	for _, pattern := range dangerousPatterns {
+		if strings.Contains(pathNormalized, strings.ToLower(pattern)) {
+			return fmt.Errorf("directory traversal detected in path")
+		}
+	}
+
+	// Check path length (reasonable limit)
+	if len(path) > 4096 {
+		return fmt.Errorf("file path is too long")
+	}
+
+	// Clean the path to resolve any remaining issues
+	cleanedPath := filepath.Clean(path)
+
+	// Check if cleaned path still contains dangerous patterns
+	if strings.Contains(cleanedPath, "..") {
+		return fmt.Errorf("invalid file path")
+	}
+
+	// Check if path is absolute and potentially dangerous
+	// (Optional: you might want to restrict to relative paths only)
+	// For now, we'll allow absolute paths but validate them
+
+	return nil
+}
+
 // TLETextFile reads TLE data from a text file and parses it.
 func TLETextFile() {
 	fmt.Print("\n ENTER TEXT FILE PATH > ")
 	var path string
 	fmt.Scanln(&path)
+
+	// Validate file path before attempting to open
+	if err := validateFilePath(path); err != nil {
+		fmt.Println(color.Ize(color.Red, fmt.Sprintf("  [!] ERROR: %s", err.Error())))
+		return
+	}
+
+	// Clean the path after validation
+	path = filepath.Clean(strings.TrimSpace(path))
+
+	// Check if file exists and is a regular file (not a directory)
+	fileInfo, err := os.Stat(path)
+	if err != nil {
+		fmt.Println(color.Ize(color.Red, "  [!] INVALID TEXT FILE"))
+		return
+	}
+
+	// Ensure it's a file, not a directory
+	if fileInfo.IsDir() {
+		fmt.Println(color.Ize(color.Red, "  [!] ERROR: Path is a directory, not a file"))
+		return
+	}
+
 	file, err := os.Open(path)
 
 	if err != nil {
