@@ -34,26 +34,22 @@ func GetVisualPrediction() {
 		fmt.Println(color.Ize(color.Red, "  [!] ERROR: INVALID INPUT"))
 		return
 	}
-	fmt.Print("\n ENTER LATITUDE > ")
-	var latitude string
-	fmt.Scanln(&latitude)
-	if strings.TrimSpace(latitude) == "" {
-		fmt.Println(color.Ize(color.Red, "  [!] ERROR: Latitude cannot be empty"))
+	
+	// Automatically detect user location
+	latitude, longitude, autoDetected := GetLocationWithPrompt()
+	if latitude == "" || longitude == "" {
 		return
 	}
-	fmt.Print("\n ENTER LONGITUDE > ")
-	var longitude string
-	fmt.Scanln(&longitude)
-	if strings.TrimSpace(longitude) == "" {
-		fmt.Println(color.Ize(color.Red, "  [!] ERROR: Longitude cannot be empty"))
-		return
+
+	if autoDetected {
+		fmt.Println(color.Ize(color.Green, "  [+] Using auto-detected location"))
 	}
-	fmt.Print("\n ENTER ALTITUDE > ")
+
+	fmt.Print("\n ENTER ALTITUDE (meters, default: 0) > ")
 	var altitude string
 	fmt.Scanln(&altitude)
 	if strings.TrimSpace(altitude) == "" {
-		fmt.Println(color.Ize(color.Red, "  [!] ERROR: Altitude cannot be empty"))
-		return
+		altitude = "0"
 	}
 	fmt.Print("\n ENTER DAYS OF PREDICTION > ")
 	var days string
@@ -146,26 +142,22 @@ func GetRadioPrediction() {
 		fmt.Println(color.Ize(color.Red, "  [!] ERROR: INVALID INPUT"))
 		return
 	}
-	fmt.Print("\n ENTER LATITUDE > ")
-	var latitude string
-	fmt.Scanln(&latitude)
-	if strings.TrimSpace(latitude) == "" {
-		fmt.Println(color.Ize(color.Red, "  [!] ERROR: Latitude cannot be empty"))
+	
+	// Automatically detect user location
+	latitude, longitude, autoDetected := GetLocationWithPrompt()
+	if latitude == "" || longitude == "" {
 		return
 	}
-	fmt.Print("\n ENTER LONGITUDE > ")
-	var longitude string
-	fmt.Scanln(&longitude)
-	if strings.TrimSpace(longitude) == "" {
-		fmt.Println(color.Ize(color.Red, "  [!] ERROR: Longitude cannot be empty"))
-		return
+
+	if autoDetected {
+		fmt.Println(color.Ize(color.Green, "  [+] Using auto-detected location"))
 	}
-	fmt.Print("\n ENTER ALTITUDE > ")
+
+	fmt.Print("\n ENTER ALTITUDE (meters, default: 0) > ")
 	var altitude string
 	fmt.Scanln(&altitude)
 	if strings.TrimSpace(altitude) == "" {
-		fmt.Println(color.Ize(color.Red, "  [!] ERROR: Altitude cannot be empty"))
-		return
+		altitude = "0"
 	}
 	fmt.Print("\n ENTER DAYS OF PREDICTION > ")
 	var days string
