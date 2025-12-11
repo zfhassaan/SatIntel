@@ -34,29 +34,22 @@ func GetVisualPrediction() {
 		fmt.Println(color.Ize(color.Red, "  [!] ERROR: INVALID INPUT"))
 		return
 	}
-	fmt.Print("\n ENTER LATITUDE > ")
-	var latitude string
-	fmt.Scanln(&latitude)
-	latitude = strings.TrimSpace(latitude)
-	if latitude == "" {
-		fmt.Println(color.Ize(color.Red, "  [!] ERROR: Latitude cannot be empty"))
+	
+	// Automatically detect user location
+	latitude, longitude, autoDetected := GetLocationWithPrompt()
+	if latitude == "" || longitude == "" {
 		return
 	}
-	fmt.Print("\n ENTER LONGITUDE > ")
-	var longitude string
-	fmt.Scanln(&longitude)
-	longitude = strings.TrimSpace(longitude)
-	if longitude == "" {
-		fmt.Println(color.Ize(color.Red, "  [!] ERROR: Longitude cannot be empty"))
-		return
+
+	if autoDetected {
+		fmt.Println(color.Ize(color.Green, "  [+] Using auto-detected location"))
 	}
-	fmt.Print("\n ENTER ALTITUDE > ")
+
+	fmt.Print("\n ENTER ALTITUDE (meters, default: 0) > ")
 	var altitude string
 	fmt.Scanln(&altitude)
-	altitude = strings.TrimSpace(altitude)
-	if altitude == "" {
-		fmt.Println(color.Ize(color.Red, "  [!] ERROR: Altitude cannot be empty"))
-		return
+	if strings.TrimSpace(altitude) == "" {
+		altitude = "0"
 	}
 	fmt.Print("\n ENTER DAYS OF PREDICTION > ")
 	var days string
@@ -96,7 +89,8 @@ func GetVisualPrediction() {
 	resp, err := http.Get(url)
 	spinner.Stop()
 	if err != nil {
-		fmt.Println(color.Ize(color.Red, "  [!] ERROR: Failed to fetch visual pass data: "+err.Error()))
+		context := fmt.Sprintf("NORAD ID: %s, Latitude: %s, Longitude: %s", selection.norad, latitude, longitude)
+		HandleErrorWithContext(err, ErrCodeAPIRequestFailed, "Failed to fetch visual pass predictions from N2YO API", context)
 		return
 	}
 	defer resp.Body.Close()
@@ -104,7 +98,8 @@ func GetVisualPrediction() {
 	var data VisualPassesResponse
 	err = json.NewDecoder(resp.Body).Decode(&data)
 	if err != nil {
-		fmt.Println(color.Ize(color.Red, "  [!] ERROR: Failed to parse response: "+err.Error()))
+		context := fmt.Sprintf("NORAD ID: %s", selection.norad)
+		HandleErrorWithContext(err, ErrCodeAPIParseFailed, "Failed to parse visual pass prediction response", context)
 		return
 	}
 
@@ -156,29 +151,22 @@ func GetRadioPrediction() {
 		fmt.Println(color.Ize(color.Red, "  [!] ERROR: INVALID INPUT"))
 		return
 	}
-	fmt.Print("\n ENTER LATITUDE > ")
-	var latitude string
-	fmt.Scanln(&latitude)
-	latitude = strings.TrimSpace(latitude)
-	if latitude == "" {
-		fmt.Println(color.Ize(color.Red, "  [!] ERROR: Latitude cannot be empty"))
+	
+	// Automatically detect user location
+	latitude, longitude, autoDetected := GetLocationWithPrompt()
+	if latitude == "" || longitude == "" {
 		return
 	}
-	fmt.Print("\n ENTER LONGITUDE > ")
-	var longitude string
-	fmt.Scanln(&longitude)
-	longitude = strings.TrimSpace(longitude)
-	if longitude == "" {
-		fmt.Println(color.Ize(color.Red, "  [!] ERROR: Longitude cannot be empty"))
-		return
+
+	if autoDetected {
+		fmt.Println(color.Ize(color.Green, "  [+] Using auto-detected location"))
 	}
-	fmt.Print("\n ENTER ALTITUDE > ")
+
+	fmt.Print("\n ENTER ALTITUDE (meters, default: 0) > ")
 	var altitude string
 	fmt.Scanln(&altitude)
-	altitude = strings.TrimSpace(altitude)
-	if altitude == "" {
-		fmt.Println(color.Ize(color.Red, "  [!] ERROR: Altitude cannot be empty"))
-		return
+	if strings.TrimSpace(altitude) == "" {
+		altitude = "0"
 	}
 	fmt.Print("\n ENTER DAYS OF PREDICTION > ")
 	var days string
@@ -216,7 +204,8 @@ func GetRadioPrediction() {
 	url := "https://api.n2yo.com/rest/v1/satellite/radiopasses/" + selection.norad + "/" + latitude + "/" + longitude + "/" + altitude + "/" + days + "/" + elevation + "/&apiKey=" + os.Getenv("N2YO_API_KEY")
 	resp, err := http.Get(url)
 	if err != nil {
-		fmt.Println(color.Ize(color.Red, "  [!] ERROR: Failed to fetch radio pass data: "+err.Error()))
+		context := fmt.Sprintf("NORAD ID: %s, Latitude: %s, Longitude: %s", selection.norad, latitude, longitude)
+		HandleErrorWithContext(err, ErrCodeAPIRequestFailed, "Failed to fetch radio pass predictions from N2YO API", context)
 		return
 	}
 	defer resp.Body.Close()
@@ -224,7 +213,8 @@ func GetRadioPrediction() {
 	var data RadioPassResponse
 	err = json.NewDecoder(resp.Body).Decode(&data)
 	if err != nil {
-		fmt.Println(color.Ize(color.Red, "  [!] ERROR: Failed to parse response: "+err.Error()))
+		context := fmt.Sprintf("NORAD ID: %s", selection.norad)
+		HandleErrorWithContext(err, ErrCodeAPIParseFailed, "Failed to parse radio pass prediction response", context)
 		return
 	}
 

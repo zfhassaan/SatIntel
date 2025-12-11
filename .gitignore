@@ -11,6 +11,7 @@ go.work
 
 # Documentation files
 IMPROVEMENTS.md
+IMPROVEMENTS_COMPLETED.md
 TESTING.md
 
 # Test runner (build ignore, but keep in repo)
