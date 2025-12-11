@@ -54,18 +54,25 @@ func GetVisualPrediction() {
 	fmt.Print("\n ENTER DAYS OF PREDICTION > ")
 	var days string
 	fmt.Scanln(&days)
-	if strings.TrimSpace(days) == "" {
+	days = strings.TrimSpace(days)
+	if days == "" {
 		fmt.Println(color.Ize(color.Red, "  [!] ERROR: Days cannot be empty"))
 		return
 	}
 	fmt.Print("\n ENTER MIN VISIBILITY > ")
 	var vis string
 	fmt.Scanln(&vis)
-	if strings.TrimSpace(vis) == "" {
+	vis = strings.TrimSpace(vis)
+	if vis == "" {
 		fmt.Println(color.Ize(color.Red, "  [!] ERROR: Minimum visibility cannot be empty"))
 		return
 	}
 
+	// Clean inputs by removing degree symbols and other non-numeric characters (except decimal point and minus)
+	latitude = cleanNumericInput(latitude)
+	longitude = cleanNumericInput(longitude)
+	altitude = cleanNumericInput(altitude)
+	
 	_, err := strconv.ParseFloat(latitude, 64)
 	_, err2 := strconv.ParseFloat(longitude, 64)
 	_, err3 := strconv.ParseFloat(altitude, 64)
@@ -77,8 +84,10 @@ func GetVisualPrediction() {
 		return
 	}
 
+	spinner := ShowProgressWithSpinner("Fetching visual pass predictions")
 	url := "https://api.n2yo.com/rest/v1/satellite/visualpasses/" + selection.norad + "/" + latitude + "/" + longitude + "/" + altitude + "/" + days + "/" + vis + "/&apiKey=" + os.Getenv("N2YO_API_KEY")
 	resp, err := http.Get(url)
+	spinner.Stop()
 	if err != nil {
 		context := fmt.Sprintf("NORAD ID: %s, Latitude: %s, Longitude: %s", selection.norad, latitude, longitude)
 		HandleErrorWithContext(err, ErrCodeAPIRequestFailed, "Failed to fetch visual pass predictions from N2YO API", context)
@@ -162,18 +171,25 @@ func GetRadioPrediction() {
 	fmt.Print("\n ENTER DAYS OF PREDICTION > ")
 	var days string
 	fmt.Scanln(&days)
-	if strings.TrimSpace(days) == "" {
+	days = strings.TrimSpace(days)
+	if days == "" {
 		fmt.Println(color.Ize(color.Red, "  [!] ERROR: Days cannot be empty"))
 		return
 	}
 	fmt.Print("\n ENTER MIN ELEVATION > ")
 	var elevation string
 	fmt.Scanln(&elevation)
-	if strings.TrimSpace(elevation) == "" {
+	elevation = strings.TrimSpace(elevation)
+	if elevation == "" {
 		fmt.Println(color.Ize(color.Red, "  [!] ERROR: Minimum elevation cannot be empty"))
 		return
 	}
 
+	// Clean inputs by removing degree symbols and other non-numeric characters (except decimal point and minus)
+	latitude = cleanNumericInput(latitude)
+	longitude = cleanNumericInput(longitude)
+	altitude = cleanNumericInput(altitude)
+	
 	_, err := strconv.ParseFloat(latitude, 64)
 	_, err2 := strconv.ParseFloat(longitude, 64)
 	_, err3 := strconv.ParseFloat(altitude, 64)
@@ -318,6 +334,17 @@ type RadioPass struct {
 type RadioPassResponse struct {
 	Info   Info       `json:"info"`
 	Passes []RadioPass `json:"passes"`
+}
+
+// cleanNumericInput removes non-numeric characters from input string, keeping only digits, decimal point, and minus sign.
+func cleanNumericInput(input string) string {
+	var result strings.Builder
+	for _, char := range input {
+		if (char >= '0' && char <= '9') || char == '.' || char == '-' {
+			result.WriteRune(char)
+		}
+	}
+	return result.String()
 }
 
 // PrintVisualPass displays visual pass information in a formatted table.

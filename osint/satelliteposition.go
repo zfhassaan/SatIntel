@@ -67,8 +67,10 @@ func GetLocation(norad string) {
 		return
 	}
 
+	spinner := ShowProgressWithSpinner("Fetching satellite position data")
 	url := "https://api.n2yo.com/rest/v1/satellite/positions/" + norad + "/" + latitude + "/" + longitude + "/" + altitude + "/2/&apiKey=" + os.Getenv("N2YO_API_KEY")
 	resp, err := http.Get(url)
+	spinner.Stop()
 	if err != nil {
 		context := fmt.Sprintf("NORAD ID: %s, Latitude: %s, Longitude: %s", norad, latitude, longitude)
 		HandleErrorWithContext(err, ErrCodeAPIRequestFailed, "Failed to fetch satellite position data from N2YO API", context)

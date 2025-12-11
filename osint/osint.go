@@ -23,6 +23,9 @@ const (
 // Login authenticates with Space-Track API using credentials from environment variables.
 // Returns an HTTP client with a cookie jar to maintain the session.
 func Login() (*http.Client, error) {
+	spinner := ShowLoginProgress()
+	defer spinner.Stop()
+
 	vals := url.Values{}
 	vals.Add("identity", os.Getenv("SPACE_TRACK_USERNAME"))
 	vals.Add("password", os.Getenv("SPACE_TRACK_PASSWORD"))
@@ -48,6 +51,7 @@ func Login() (*http.Client, error) {
 		return nil, NewAppErrorWithContext(ErrCodeAuthFailed, "Authentication failed with Space-Track API", context)
 	}
 
+	spinner.Stop()
 	fmt.Println(color.Ize(color.Green, "  [+] Logged in successfully"))
 	return client, nil
 }
@@ -55,25 +59,33 @@ func Login() (*http.Client, error) {
 // QuerySpaceTrack sends a GET request to the Space-Track API using the authenticated client.
 // Returns the response body as a string.
 func QuerySpaceTrack(client *http.Client, endpoint string) (string, error) {
+	spinner := ShowQueryProgress(endpoint)
+	defer spinner.Stop()
+
 	req, err := http.NewRequest("GET", queryBaseURL+endpoint, nil)
 	if err != nil {
+		spinner.Stop()
 		return "", fmt.Errorf("failed to create query request: %w", err)
 	}
 
 	resp, err := client.Do(req)
 	if err != nil {
+		spinner.Stop()
 		return "", fmt.Errorf("failed to fetch data from Space-Track: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		spinner.Stop()
 		return "", fmt.Errorf("query returned non-success status code: %d", resp.StatusCode)
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
+		spinner.Stop()
 		return "", fmt.Errorf("failed to read response body: %w", err)
 	}
+	spinner.Stop()
 	return string(body), nil
 }
 
@@ -417,8 +429,10 @@ func SelectSatellite() string {
 		// Cache the filtered results to avoid refetching
 		if searchName != "" && len(allFilteredSats) == 0 {
 			// Fetch a larger batch for client-side filtering
+			spinner := ShowProgressWithSpinner("Searching satellite catalog")
 			endpoint := buildSatcatQuery(searchName, country, objectType, launchYear, 1, 0)
 			data, err := QuerySpaceTrack(client, endpoint)
+			spinner.Stop()
 			if err != nil {
 				context := fmt.Sprintf("Search: %s, Country: %s, Object Type: %s, Launch Year: %s", searchName, country, objectType, launchYear)
 				HandleErrorWithContext(err, ErrCodeAPINoData, "Failed to fetch satellite catalog", context)
@@ -461,8 +475,10 @@ func SelectSatellite() string {
 			}
 		} else {
 			// No name search - use server-side pagination
+			spinner := ShowProgressWithSpinner("Loading satellite catalog")
 			endpoint := buildSatcatQuery(searchName, country, objectType, launchYear, page, pageSize)
 			data, err := QuerySpaceTrack(client, endpoint)
+			spinner.Stop()
 			if err != nil {
 				context := fmt.Sprintf("Page: %d, Country: %s, Object Type: %s", page, country, objectType)
 				HandleErrorWithContext(err, ErrCodeAPINoData, "Failed to fetch satellite catalog", context)
