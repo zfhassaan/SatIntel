@@ -58,12 +58,3 @@ func TestBannerFileReading(t *testing.T) {
 		})
 	}
 }
-
-// Placeholder for future CLI tests
-// Add more tests as you implement testable CLI functions
-
-
-
-
-
-
